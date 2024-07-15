@@ -2,6 +2,7 @@ package rendezvous
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -26,10 +27,11 @@ type Server struct {
 	logger     *zap.Logger
 	templates  map[string]*template.Template
 	version    *semver.Version
+	authToken  string
 }
 
 // NewServer constructs a new Server struct and setups the routes.
-func NewServer(port int, version semver.Version) *Server {
+func NewServer(port int, authToken string, version semver.Version) *Server {
 	router := &mux.Router{}
 	lgr := logger.New()
 	stdLoggerWrapper, err := zap.NewStdLogAt(lgr, zap.ErrorLevel)
@@ -54,6 +56,7 @@ func NewServer(port int, version semver.Version) *Server {
 		logger:    lgr,
 		templates: tmpls,
 		version:   &version,
+		authToken: authToken,
 	}
 	s.routes()
 	return s
@@ -77,15 +80,21 @@ func (s *Server) Start() {
 // serve is a helper function providing graceful shutdown of the server.
 func serve(s *Server, ctx context.Context) (err error) {
 	go func() {
-		if err = s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err = s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Fatal("serving portal", zap.Error(err), zap.Stack("stack_trace"))
 		}
 	}()
 
+	logMsg := fmt.Sprint("serving rendezvous server")
+	if s.authToken != "" {
+		s.SaveAuthPassword()
+		logMsg = fmt.Sprint("serving rendezvous server with auth token")
+	}
+
 	s.logger.
 		With(zap.String("version", s.version.String())).
 		With(zap.String("address", s.httpServer.Addr)).
-		Info("serving rendezvous server")
+		Info(logMsg)
 	<-ctx.Done()
 
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -97,9 +106,21 @@ func serve(s *Server, ctx context.Context) (err error) {
 		s.logger.Fatal("shutting down rendezvous server", zap.Error(err))
 	}
 
-	if err == http.ErrServerClosed {
+	if errors.Is(err, http.ErrServerClosed) {
 		err = nil
 	}
 	s.logger.Info("Portal Rendezvous Server shutdown successfully")
 	return err
+}
+
+func (s *Server) SaveAuthPassword() {
+	f, err := os.Create("srv_auth.txt")
+	if err != nil {
+		s.logger.Fatal("cannot make auth file", zap.Error(err))
+	}
+	defer f.Close()
+	_, err = f.WriteString(s.authToken)
+	if err != nil {
+		s.logger.Fatal("cannot write auth file", zap.Error(err))
+	}
 }

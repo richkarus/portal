@@ -40,6 +40,9 @@ func Receive(version string) *cobra.Command {
 			if err := viper.BindPFlag("tui_style", cmd.Flags().Lookup("tui-style")); err != nil {
 				return fmt.Errorf("binding tui-style flag: %w", err)
 			}
+			if err := viper.BindPFlag("relay_auth_token", cmd.Flags().Lookup("relay-auth")); err != nil {
+				return fmt.Errorf("binding relay-auth token flag: %w", err)
+			}
 
 			// Reverse the --yes/-y flag value as it has an inverse relationship
 			// with the configuration value 'prompt_overwrite_files'.
@@ -86,6 +89,8 @@ func Receive(version string) *cobra.Command {
 	receiveCmd.Flags().StringP("relay", "r", "", relayFlagDesc)
 	receiveCmd.Flags().BoolP("yes", "y", false, "Overwrite existing files without [Y/n] prompts")
 	receiveCmd.Flags().StringP("tui-style", "s", "", tuiStyleFlagDesc)
+	receiveCmd.Flags().StringP("relay-auth", "a", "", "relay authentication token")
+
 	return receiveCmd
 }
 

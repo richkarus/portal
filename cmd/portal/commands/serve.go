@@ -19,6 +19,9 @@ func Serve(version string) *cobra.Command {
 			if err := viper.BindPFlag("relay_serve_port", cmd.Flags().Lookup("port")); err != nil {
 				return fmt.Errorf("binding relay-port flag: %w", err)
 			}
+			if err := viper.BindPFlag("relay_auth_token", cmd.Flags().Lookup("relay-auth")); err != nil {
+				return fmt.Errorf("binding relay-auth token flag: %w", err)
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -26,11 +29,12 @@ func Serve(version string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("server requires version to be set: %w", err)
 			}
-			server := rendezvous.NewServer(viper.GetInt("relay_serve_port"), ver)
+			server := rendezvous.NewServer(viper.GetInt("relay_serve_port"), viper.GetString("relay_auth_token"), ver)
 			server.Start()
 			return nil
 		},
 	}
 	serveCmd.Flags().IntP("port", "p", 0, "port to run the portal relay server on")
+	serveCmd.Flags().StringP("relay-auth", "a", "", "relay authentication token")
 	return serveCmd
 }

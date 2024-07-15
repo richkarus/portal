@@ -30,6 +30,9 @@ func Send(version string) *cobra.Command {
 			if err := viper.BindPFlag("tui_style", cmd.Flags().Lookup("tui-style")); err != nil {
 				return fmt.Errorf("binding tui-style flag: %w", err)
 			}
+			if err := viper.BindPFlag("relay_auth_token", cmd.Flags().Lookup("relay-auth")); err != nil {
+				return fmt.Errorf("binding relay-auth token flag: %w", err)
+			}
 			return nil
 
 		},
@@ -58,6 +61,7 @@ func Send(version string) *cobra.Command {
 	}
 	sendCmd.Flags().StringP("relay", "r", "", relayFlagDesc)
 	sendCmd.Flags().StringP("tui-style", "s", "", tuiStyleFlagDesc)
+	sendCmd.Flags().StringP("relay-auth", "a", "", "relay authentication token")
 	return sendCmd
 }
 
